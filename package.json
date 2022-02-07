@@ -1,0 +1,27 @@
+{
+  "name": "jaden_sterner",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/jsterner30/sterner-practice-request.git"
+  },
+  "author": "Jaden Sterner",
+  "license": "Apache-2.0",
+  "bugs": {
+    "url": "https://github.com/jsterner30/sterner-practice-request/issues"
+  },
+  "homepage": "https://github.com/jsterner30/sterner-practice-request#readme",
+  "dependencies": {
+    "aws-sdk": "^2.1064.0",
+    "axios": "^0.24.0",
+    "inquirer": "^8.2.0",
+    "inquirer-datepicker-prompt": "^0.4.2",
+    "mathjs": "^10.1.0",
+    "oracledb": "^5.3.0"
+  }
+}
