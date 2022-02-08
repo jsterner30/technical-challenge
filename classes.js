@@ -20,7 +20,6 @@ class Room {
 class Course {
     constructor(name, id, studName, building, room, startTime, endTime, online, days) {
         this.name = name
-        this.value = {}
         this.id = id
         this.studName = studName
         this.building = building
@@ -32,6 +31,15 @@ class Course {
     }
 }
 
+class WeekCourse {
+    constructor(name, building, room, startTime, endTime) {
+        this.name = name
+        this.building = building
+        this.room = room
+        this.startTime = startTime
+        this.endTime = endTime
+    }
+}
 
 class FreeRoom {
     constructor(number, time) {
@@ -40,8 +48,20 @@ class FreeRoom {
         this.Available_Until = time
     }
 }
+
+class Week {
+    constructor(){
+        this.Monday = []
+        this.Tuesday = []
+        this.Wednesday = []
+        this.Thursday = []
+        this.Friday = []
+        this.Saturday = []
+        this.Sunday = []
+    }
+}
 //Export Classes
-module.exports = {Building, Room, Course, FreeRoom}
+module.exports = {Building, Room, Course, FreeRoom, Week, WeekCourse}
 
 
 

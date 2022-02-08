@@ -14,6 +14,7 @@ async function main() {
     let buildingLocs = await functions.getBuildingPos()
     let buildingNames = await functions.getBuildingNames()
     buildingLocs = await functions.scanArray(buildingNames, buildingLocs)
+    let studentSchedule = await functions.getStudentSchedule()
 
     let mainResponse = await functions.mainMenu()
 
@@ -38,8 +39,7 @@ async function main() {
                 break;
             case 2:
                 needRepeat = true
-                    let studentSchedule = await functions.getStudentSchedule()
-                    //studentSchedule = await functions.checkOnlineClasses(studentSchedule, buildingLocs)
+                studentSchedule = await functions.checkOnlineClasses(studentSchedule, buildingLocs)
                 while(needRepeat) {
                     console.log("Here is your current schedule:")
                     console.table(studentSchedule)
@@ -49,8 +49,9 @@ async function main() {
                 mainResponse = await functions.mainMenu();
                 break;
             case 3:
-                break;
-            case 4:
+                //studentSchedule = await functions.checkOnlineClasses(studentSchedule, buildingLocs)
+                await functions.printStudSched()
+                mainResponse = 5;
                 break;
             case 6:
                 break;

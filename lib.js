@@ -137,8 +137,8 @@ async function mainMenu() {
             name: "response",
             type: "list",
             message: "What would you like to do?",
-            choices: ["Find empty rooms near me right now", "Find empty rooms at a different time or place", "Print a room's schedule",
-                "Add downtime rooms to my current class schedule", "View current downtime schedule", "View current class schedule", "Quit"]
+            choices: ["Add downtime rooms to my current class schedule", "View current downtime schedule", "Find empty rooms near me right now", "Find empty rooms at a different time or place",
+                "Print a room's schedule", "Quit"]
         },
         ])
     switch (answer.response){
@@ -153,9 +153,6 @@ async function mainMenu() {
             break
         case "View current downtime schedule":
             return 3
-            break
-        case "View current class schedule":
-            return 4
             break
         case "Quit":
             return 5
@@ -588,8 +585,39 @@ function convertTime(time) {
     return totalSecs
 }
 
-async function printStudSched(studSched) {
-    console.table(studSched)
+async function printStudSched() {
+    let weekSched = await database.readDatabase(byuID)
+    //await printWeek();
+}
+//else if (j == 0 || j == width - 1) {
+    //process.stdout.write(sideChar)
+
+async function printWeek() {
+    let size = 10
+    let i, j, p
+    let width = process.stdout.columns - 10
+    let mod = math.floor(width / 7)
+
+    let topChar = '_'
+    let sideChar = '|'
+
+    for (i = 0; i < size; i++) {
+        process.stdout.write('\n')
+        for (j = 0; j < width; j++) {
+            if ((j % mod == 1 && i != 0 && i != size-1) && (j - mod != 0) && (j + mod != width)  || (j == 0 && i !=0 && i != size-1)|| (j == width-1 && i !=0 && i != size-1)) {
+                process.stdout.write(sideChar)
+            }
+            if (i == 0 || i == size-1) {
+                process.stdout.write(topChar)
+                if ((i == 0 || i == size-1) && (j == width - 10)) {
+                    process.stdout.write('________')
+                }
+            } else {
+                process.stdout.write(" ")
+            }
+        }
+    }
+
 }
 
 async function checkTime(studSched, time, days, message) {
@@ -686,6 +714,7 @@ async function checkOnlineClasses(studSched, buildingArray) {
                             buildingCode = buildingArray[t].code
                         }
                     }
+                    userTime = userTime.substr(1, 5)
                     studSched[i].building = buildingCode
                     studSched[i].room = answer5.room
                     studSched[i].startTime = userTime
@@ -759,32 +788,29 @@ async function addDownTime(studSched, buildingArray) {
                 message: `In what BYU building will you spend your downtime?`
             }])
         let daysAvailable = await checkRooms(answer4.building, buildingArray, studSched, days, userTime, roomType, needTime, addDownTime)
-
-        for (let q = 0; q < daysAvailable.length; q++){
-            choicesArray.push({
-                name: daysAvailable.name,
-                value: "t"
-            })
-        }
-        let answer5 = await inquirer
-            .prompt([{
-                name: "room",
-                type: "list",
-                choices: choicesArray,
-                message: `In what room would you like to take spend your downtime?`
-            }])
-        for (let t = 0; t < buildingArray.length; t++ ) {
-            if (answer4.building == buildingArray[t].name) {
-                buildingCode = buildingArray[t].code
+        if (!daysAvailable) {
+            return
+        } else {
+            let answer5 = await inquirer
+                .prompt([{
+                    name: "room",
+                    type: "list",
+                    message: `In what room would you like to take spend your downtime?`,
+                    choices: daysAvailable,
+                }])
+            for (let t = 0; t < buildingArray.length; t++) {
+                if (answer4.building == buildingArray[t].name) {
+                    buildingCode = buildingArray[t].code
+                }
             }
+            let online = false
+            userTime = userTime.substr(1, 5)
+            studSched.push(new classes.Course(className, id, studName, buildingCode, answer5.room, userTime, endTime, online, daysArray))
+            await database.writeDatabase(studSched, byuID)
+            console.log("Your schedule has been updated")
+            return studSched
         }
-        let online = false
-        studSched.push(new classes.Course(className, id, studName, buildingCode, answer5.room, userTime, endTime, online, daysArray))
-        await database.writeDatabase(studSched, byuID)
-        console.log("Your schedule has been updated")
-        return studSched
     }
-
 }
 
 async function confirm(question) {
@@ -828,6 +854,9 @@ async function checkRooms(building, buildingArray, studSched, days, userTime, ro
         }])
         if (answer.names) {
             await functionName(studSched, buildingArray)
+        }
+        else {
+            return
         }
     }
     else {
