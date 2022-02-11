@@ -13,7 +13,6 @@ class Room {
         this.description = description
         this.scheduleArray
         this.weekScheduleArray = []
-        this.freeTime = []
     }
 }
 
@@ -32,12 +31,13 @@ class Course {
 }
 
 class WeekCourse {
-    constructor(name, building, room, startTime, endTime) {
+    constructor(name, building, room, startTime, endTime, online) {
         this.name = name
         this.building = building
         this.room = room
         this.startTime = startTime
         this.endTime = endTime
+        this.online = online
     }
 }
 
@@ -50,7 +50,7 @@ class FreeRoom {
 }
 
 class Week {
-    constructor(){
+    constructor() {
         this.Monday = []
         this.Tuesday = []
         this.Wednesday = []
@@ -58,6 +58,59 @@ class Week {
         this.Friday = []
         this.Saturday = []
         this.Sunday = []
+        this.OnlineClasses = []
+    }
+
+    at(number) {
+        switch (number) {
+            case 0:
+                return this.Monday
+                break
+            case 1:
+                return this.Tuesday
+                break
+            case 2:
+                return this.Wednesday
+                break
+            case 3:
+                return this.Thursday
+                break
+            case 4:
+                return this.Friday
+                break
+            case 5:
+                return this.Saturday
+                break
+            case 6:
+                return this.Sunday
+                break
+        }
+    }
+
+    day(number) {
+        switch (number) {
+            case 0:
+                return "Monday"
+                break
+            case 1:
+                return "Tuesday"
+                break
+            case 2:
+                return "Wednesday"
+                break
+            case 3:
+                return "Thursday"
+                break
+            case 4:
+                return "Friday"
+                break
+            case 5:
+                return "Saturday"
+                break
+            case 6:
+                return "Sunday"
+                break
+        }
     }
 }
 //Export Classes

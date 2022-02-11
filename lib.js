@@ -1,13 +1,9 @@
 const axios = require('axios')
 const database = require("./database.js")
 const classes = require("./classes.js")
-const {Building} = require("./classes.js")
-const {Room} = require("./classes.js")
-const {Course} = require("./classes.js")
 const math = require("mathjs")
 const datePicker = require('inquirer-datepicker-prompt')
 const inquirer = require("inquirer")
-const {FreeRoom} = require("./classes");
 inquirer.registerPrompt('datetime', datePicker)
 
 let byuID
@@ -137,18 +133,18 @@ async function mainMenu() {
             name: "response",
             type: "list",
             message: "What would you like to do?",
-            choices: ["Add downtime rooms to my current class schedule", "View current downtime schedule", "Find empty rooms near me right now", "Find empty rooms at a different time or place",
-                "Print a room's schedule", "Quit"]
+            choices: ["Add downtime to my current class schedule", "View current schedule", "Find empty rooms near me right now", "Remove downtime from my schedule",
+                "Add a place and time for an online class", 'Edit online class schedule', "Quit"]
         },
         ])
     switch (answer.response){
         case "Find empty rooms near me right now":
             return 0
             break
-        case "Print room schedule":
+        case "Add a place and time for an online class":
             return 1
             break
-        case "Add downtime rooms to my current class schedule":
+        case "Add downtime to my current class schedule":
             return 2
             break
         case "View current downtime schedule":
@@ -157,8 +153,11 @@ async function mainMenu() {
         case "Quit":
             return 5
             break
-        case "Find empty rooms at a different time or place":
+        case "Remove downtime from my schedule":
             return 6
+            break
+        case "Edit online class schedule":
+            return 4
             break
     }
 }
@@ -226,7 +225,7 @@ async function getBuildingRooms(buildingCode) {
             roomOptions.url = `https://api.byu.edu:443/domains/legacy/academic/classschedule/classroom/v1/20221/${buildingCode}` + `/${rooms[i].room_number}/schedule`;
             let response = await axios(roomOptions)
             let roomInfo = response.data.ClassRoomService.response
-            roomObjects.push(new Room(roomInfo.room, roomInfo.room_desc));
+            roomObjects.push(new classes.Room(roomInfo.room, roomInfo.room_desc));
             roomObjects[i].scheduleArray = roomInfo.schedules
         }
         return roomObjects;
@@ -241,7 +240,7 @@ async function getBuildingPos() {
         let buildingObjects = [];
         const response = await axios(buildingOptions);
         for (let i = 0; i < response.data.length; i++) {
-            buildingObjects.push(new Building(response.data[i].name, response.data[i].acronym, response.data[i].latitude, response.data[i].longitude));
+            buildingObjects.push(new classes.Building(response.data[i].name, response.data[i].acronym, response.data[i].latitude, response.data[i].longitude));
         }
         return buildingObjects;
     } catch (err) {
@@ -271,6 +270,7 @@ async function getStudentSchedule() {
     try {
         const info = await axios(studentInfoOptions);
         for (let i = 0; i < info.data.values.length; i++) {
+            dayArray = [];
             let className = info.data.values[i].course_title.value
             let id = info.data.values[i].curriculum_id.value
             let building = info.data.values[i].when_taught.object_array[0].building.value
@@ -278,13 +278,16 @@ async function getStudentSchedule() {
             let startTime = info.data.values[i].when_taught.object_array[0].start_time.value
             let endTime = info.data.values[i].when_taught.object_array[0].end_time.value
             let online = info.data.values[i].taught_online.value
-            let days = info.data.values[i].when_taught.object_array[0].days.value
+            let days= info.data.values[i].when_taught.object_array[0].days.value
             let studName = info.data.values[i].byu_id.description
             if (days == "Daily"){
                 days = "MTWThF"
             }
             if (days != null) {
                 dayArray = daysParse(days)
+            }
+            else {
+                dayArray = [-1]
             }
             studentSchedule.push(new classes.Course(className, id, studName, building, room, startTime, endTime, online, dayArray))
         }
@@ -496,21 +499,22 @@ async function getFreeRooms(buildingArray, buildingName, day, time, roomType, ne
         if (buildingArray[i].name == buildingName && buildingArray[i].roomArray) {
             for (let j = 0; j < buildingArray[i].roomArray.length; j++){
                 if (buildingArray[i].roomArray[j].description == roomType){
-                    for (let k = 0; k < buildingArray[i].roomArray[j].weekScheduleArray[dayNumber].length; k++){
-                        let timeSecs = await convertTime(time);
-                        let startTime = buildingArray[i].roomArray[j].weekScheduleArray[dayNumber][k][0]
-                        let endTime = buildingArray[i].roomArray[j].weekScheduleArray[dayNumber][k][1]
-                        let startTimeSecs = convertTime(startTime)
-                        let endTimeSecs = convertTime(endTime)
-                        if (timeSecs < startTimeSecs) {
-                            if (buildingArray[i].roomArray[j].weekScheduleArray[dayNumber][k - 1]) {
-                                if (timeSecs > convertTime(buildingArray[i].roomArray[j].weekScheduleArray[dayNumber][k - 1][0]) && startTimeSecs - timeSecs > needTime) {
-                                    freeObj.push(new FreeRoom(buildingArray[i].roomArray[j].number, startTime))
+                    if (buildingArray[i].roomArray[j].weekScheduleArray[dayNumber]) {
+                        for (let k = 0; k < buildingArray[i].roomArray[j].weekScheduleArray[dayNumber].length; k++) {
+                            let timeSecs = await convertTime(time);
+                            let startTime = buildingArray[i].roomArray[j].weekScheduleArray[dayNumber][k][0]
+                            let endTime = buildingArray[i].roomArray[j].weekScheduleArray[dayNumber][k][1]
+                            let startTimeSecs = convertTime(startTime)
+                            let endTimeSecs = convertTime(endTime)
+                            if (timeSecs < startTimeSecs) {
+                                if (buildingArray[i].roomArray[j].weekScheduleArray[dayNumber][k - 1]) {
+                                    if (timeSecs > convertTime(buildingArray[i].roomArray[j].weekScheduleArray[dayNumber][k - 1][0]) && startTimeSecs - timeSecs > needTime) {
+                                        freeObj.push(new classes.FreeRoom(buildingArray[i].roomArray[j].number, startTime))
+                                    }
+                                } else if (startTimeSecs - timeSecs > needTime) {
+                                    freeObj.push(new classes.FreeRoom(buildingArray[i].roomArray[j].number, startTime))
                                 }
                             }
-                        else if (startTimeSecs - timeSecs > needTime) {
-                            freeObj.push(new FreeRoom(buildingArray[i].roomArray[j].number, startTime))
-                        }
                         }
                     }
                 }
@@ -586,39 +590,11 @@ function convertTime(time) {
 }
 
 async function printStudSched() {
-    let weekSched = await database.readDatabase(byuID)
-    //await printWeek();
+    console.log("Here is your current schedule:")
+    let weekSched = await database.editDatabase(byuID)
+    await database.printWeek(weekSched)
 }
-//else if (j == 0 || j == width - 1) {
-    //process.stdout.write(sideChar)
 
-async function printWeek() {
-    let size = 10
-    let i, j, p
-    let width = process.stdout.columns - 10
-    let mod = math.floor(width / 7)
-
-    let topChar = '_'
-    let sideChar = '|'
-
-    for (i = 0; i < size; i++) {
-        process.stdout.write('\n')
-        for (j = 0; j < width; j++) {
-            if ((j % mod == 1 && i != 0 && i != size-1) && (j - mod != 0) && (j + mod != width)  || (j == 0 && i !=0 && i != size-1)|| (j == width-1 && i !=0 && i != size-1)) {
-                process.stdout.write(sideChar)
-            }
-            if (i == 0 || i == size-1) {
-                process.stdout.write(topChar)
-                if ((i == 0 || i == size-1) && (j == width - 10)) {
-                    process.stdout.write('________')
-                }
-            } else {
-                process.stdout.write(" ")
-            }
-        }
-    }
-
-}
 
 async function checkTime(studSched, time, days, message) {
     let newTime = convertTime(time)
@@ -648,14 +624,8 @@ async function checkOnlineClasses(studSched, buildingArray) {
     let needTime
     let roomType = "CLASSROOM"
     for (let i = 0; i < studSched.length; i++) {
-        if (studSched[i].startTime == null) {
-            const answer = await inquirer
-                .prompt([{
-                    name: "ans",
-                    type: "confirm",
-                    message: `${studSched[i].name} is an online class \nWould you like to add a place and time where you plan on taking this class during the week?`
-                }])
-            if (answer.ans) {
+        if (studSched[i].online == true) {
+            console.log(`${studSched[i].name} is an online class`)
                 let answerDays = await inquirer
                     .prompt([{
                         name: "day",
@@ -721,26 +691,100 @@ async function checkOnlineClasses(studSched, buildingArray) {
                     studSched[i].endTime = endTime
                     studSched[i].days = daysArray
                     await database.writeDatabase(studSched, byuID)
+                    console.clear()
                     console.log("Your schedule has been updated")
                     return studSched
                 }
             }
-            else {
-                return studSched
-            }
+        else {
+            continue
         }
     }
+    console.log('It appears you have no online classes')
     return studSched
 }
 
+async function editDownTime() {
+    let weekArray = []
+    let classesArray = []
+    let studSched = await database.editDatabase(byuID)
+    for (let k = 0; k < 7; ++k) {
+        weekArray.push(studSched.at(k))
+    }
+        for (let i = 0; i < weekArray.length; ++i){
+            for (let j = 0; j < weekArray[i].length; ++j) {
+                if (weekArray[i][j].name == "Downtime") {
+                    classesArray.push(weekArray[i][j].name + " from " + weekArray[i][j].startTime + " to " + weekArray[i][j].endTime + " on " + studSched.day(i))
+                }
+            }
+        }
+
+    if (classesArray.length == 0){
+        console.log('It appears that you have no scheduled downtime')
+        let response = await confirm('Would you like to schedule downtime')
+        return response
+    }
+    else {
+        console.log("Here is your current schedule:")
+        await database.printWeek(studSched)
+        let answer = await inquirer
+            .prompt([{
+                name: "downtime",
+                type: "checkbox",
+                message: "What would you like to remove from your schedule?",
+                choices: classesArray
+            }])
+        await database.removeDownTime(answer.downtime, byuID);
+    }
+    console.clear()
+    console.log("Your schedule has been updated")
+
+}
+
+async function editOnlineClass() {
+    let weekArray = []
+    let classesArray = []
+    let studSched = await database.editDatabase(byuID)
+    for (let k = 0; k < 7; ++k) {
+        weekArray.push(studSched.at(k))
+    }
+    for (let i = 0; i < weekArray.length; ++i){
+        for (let j = 0; j < weekArray[i].length; ++j) {
+            if (weekArray[i][j].online == "true") {
+                classesArray.push(weekArray[i][j].name + " from " + weekArray[i][j].startTime + " to " + weekArray[i][j].endTime + " on " + studSched.day(i))
+            }
+        }
+    }
+
+    if (classesArray.length == 0){
+        console.log('It appears that you have no online classes with scheduled times or places')
+        let response = await confirm('Would you like to add a time and place to your online class?')
+        return response
+    }
+    else {
+        console.log("Here is your current schedule:")
+        await database.printWeek(studSched)
+        let answer = await inquirer
+            .prompt([{
+                name: "onlineClasses",
+                type: "checkbox",
+                message: "What would you like to remove from your schedule?",
+                choices: classesArray
+            }])
+        await database.removeDownTime(answer.onlineClasses, byuID);
+    }
+    console.clear()
+    console.log("Your schedule has been updated")
+}
+
 async function addDownTime(studSched, buildingArray) {
+
     let daysArray = []
-    let choicesArray = []
     let days
     let userTime
     let needTime
     let roomType = "CLASSROOM"
-    let className = 'Down Time'
+    let className = 'Downtime'
     let id = '00000'
     let studName = studSched[0].studName
     let answerDays = await inquirer
@@ -807,6 +851,7 @@ async function addDownTime(studSched, buildingArray) {
             userTime = userTime.substr(1, 5)
             studSched.push(new classes.Course(className, id, studName, buildingCode, answer5.room, userTime, endTime, online, daysArray))
             await database.writeDatabase(studSched, byuID)
+            console.clear()
             console.log("Your schedule has been updated")
             return studSched
         }
@@ -905,5 +950,5 @@ function letterToDay(letter) {
 //Export Functions
 module.exports = {getLocation, getBuildingPos, getBuilding, getBuildingNames, scanArray, askUserBuilding,
     getBuildingRoomSchedule, getFreeRooms, getCurrDay, getCurrTime, getBusyTimes, mainMenu, askUserNeedTime,
-    getStudentSchedule, login, printStudSched, checkOnlineClasses, isEmpty, addDownTime, confirm}
+    getStudentSchedule, login, printStudSched, checkOnlineClasses, isEmpty, addDownTime, confirm, editDownTime, editOnlineClass}
 

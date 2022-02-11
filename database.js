@@ -1,9 +1,7 @@
 const oracle = require("oracledb")
 const AWS = require("aws-sdk")
-const functions = require("./lib.js")
 const classes = require('./classes.js')
-const {WeekCourse} = require("./classes");
-const math = require("mathjs");
+
 
 //Oracle DB Parameters
 const params = {
@@ -65,7 +63,7 @@ async function truncateTable() {
         const firstParams = await ssm.getParameters(parameters).promise()
         await setOracleCredentials(firstParams.Parameters[1].Value, firstParams.Parameters[0].Value)
         const conn = await oracle.getConnection(params)
-        await conn.execute('TRUNCATE TABLE OIT#JTS234.DOWN_SCHEDULE')
+        await conn.execute('TRUNCATE TABLE OIT#JTS234.DOWN_COPY')
         await conn.close()
     }catch (err) {
         console.log('It appears you are not connected to AWS CLI. PLease connect and try again')
@@ -74,7 +72,7 @@ async function truncateTable() {
 }
 
 async function writeDatabase(studentSchedule, byuID) {
-    await truncateTable();
+    await truncateTable()
     for (let i = 0; i < studentSchedule.length; i++) {
         let idTime;
         let days = ''
@@ -87,85 +85,116 @@ async function writeDatabase(studentSchedule, byuID) {
         let isOnline = String(studentSchedule[i].online)
         let courseID = studentSchedule[i].id
         for (let j = 0; j < studentSchedule[i].days.length; j++) {
-            days = days + dayNum(studentSchedule[i].days[j])
+            days = dayNum(studentSchedule[i].days[j])
 
-        }
-        idTime = byuID + '/'+ days + "/" + startTime
-        try {
-            const firstParams = await ssm.getParameters(parameters).promise()
-            await setOracleCredentials(firstParams.Parameters[1].Value, firstParams.Parameters[0].Value)
-            const conn = await oracle.getConnection(params)
-            await conn.execute('INSERT INTO OIT#JTS234.DOWN_SCHEDULE (ID_TIME, BYU_ID, FULL_NAME, START_TIME, END_TIME, BUILDING, ROOM, IS_VIRTUAL, CLASS_NAME, COURSE_ID, DAYS)' + 'VALUES (:idTime, :byuID, :fullName, :startTime, :endTime, :building, :room, :isOnline, :className, :courseID, :days)', [idTime, byuID, fullName, startTime, endTime, building, room, isOnline, className, courseID, days])
-            await conn.close()
-        } catch (err) {
-            console.log('It appears you are not connected to AWS CLI. PLease connect and try again')
-            process.exit()
+
+            idTime = byuID + '/' + days + "/" + startTime
+            try {
+                const firstParams = await ssm.getParameters(parameters).promise()
+                await setOracleCredentials(firstParams.Parameters[1].Value, firstParams.Parameters[0].Value)
+                const conn = await oracle.getConnection(params)
+                let command = 'INSERT INTO OIT#JTS234.DOWN_COPY (ID_TIME, BYU_ID, FULL_NAME, START_TIME, END_TIME, BUILDING, ROOM, IS_VIRTUAL, CLASS_NAME, COURSE_ID, DAYS)' +
+                                'VALUES (:idTime, :byuID, :fullName, :startTime, :endTime, :building, :room, :isOnline, :className, :courseID, :days)'
+                await conn.execute(command, {idTime: idTime,byuID: byuID, fullName: fullName,startTime: startTime,endTime: endTime,building: building,room: room,isOnline: isOnline,className: className,courseID: courseID,days: days}, {outFormat: oracle.OBJECT, autoCommit: true})
+                await conn.close()
+                await mergeDBS();
+            } catch (err) {
+                console.log(err)
+                throw err
+                console.log('It appears you are not connected to AWS CLI. PLease connect and try again')
+                process.exit()
+            }
         }
     }
 }
 
-async function readDatabase(byuID) {
-    let week
+async function mergeDBS() {
     const firstParams = await ssm.getParameters(parameters).promise()
     await setOracleCredentials(firstParams.Parameters[1].Value, firstParams.Parameters[0].Value)
-    const conn = await oracle.getConnection(params)
-    await conn.execute('SELECT * FROM OIT#JTS234.DOWN_SCHEDULE', async function (err, result) {
-        if (err) throw err
-        else {
-            week = await parseDatabase(result, byuID)
-            await printWeek(week)
-            return week
+    const conn2 = await oracle.getConnection(params)
+    let command =
+        'MERGE INTO OIT#JTS234.DOWN_SCHEDULE D USING (SELECT * FROM OIT#JTS234.DOWN_COPY) S ON (D.ID_TIME = S.ID_TIME) WHEN MATCHED THEN UPDATE SET D.START_TIME = S.START_TIME, D.END_TIME = S.END_TIME, D.BUILDING = S.BUILDING, D.ROOM = S.ROOM, D.IS_VIRTUAL = S.IS_VIRTUAL, D.CLASS_NAME = S.CLASS_NAME, D.COURSE_ID = S.COURSE_ID, D.DAYS = S.DAYS WHEN NOT MATCHED THEN INSERT' +
+        '(ID_TIME, BYU_ID, FULL_NAME, START_TIME, END_TIME, BUILDING, ROOM, IS_VIRTUAL, CLASS_NAME, COURSE_ID, DAYS)' +
+        'VALUES (S.ID_TIME, S.BYU_ID, S.FULL_NAME, S.START_TIME, S.END_TIME, S.BUILDING, S.ROOM, S.IS_VIRTUAL, S.CLASS_NAME, S.COURSE_ID, S.DAYS)'
+    await conn2.execute(command)
+    await conn2.close()
+}
+
+async function removeDownTime(answerArray, byuID) {
+    let wordArray = []
+    let wordsArray = []
+    let idTime
+    let startTime
+    let endTime
+    let className
+    let day
+    for (let i = 0; i < answerArray.length; ++i){
+        wordArray = answerArray[i].split('from')
+        className = wordArray[0]
+        wordsArray  = wordArray[1].split(' ')
+        startTime = wordsArray[1]
+        endTime = wordsArray[3]
+        day = dayNum(wordsArray[5])
+        idTime = byuID + '/' + day + '/' + startTime
+        try {
+            const firstParams = await ssm.getParameters(parameters).promise()
+            await setOracleCredentials(firstParams.Parameters[1].Value, firstParams.Parameters[0].Value)
+            const conn = await oracle.getConnection(params)
+            let command = `DELETE FROM OIT#JTS234.DOWN_SCHEDULE WHERE ID_TIME = :idTime`
+            await conn.execute(command, {idTime: idTime}, {outFormat: oracle.OBJECT, autoCommit: true})
+            await conn.close()
+        }catch (err){
+            throw err
+            console.log('It appears you are not connected to AWS CLI. PLease connect and try again')
+            process.exit()
         }
-    })
+    }
 
 }
 
+async function editDatabase(byuID) {
+    let week
+    try {
+        const firstParams = await ssm.getParameters(parameters).promise()
+        await setOracleCredentials(firstParams.Parameters[1].Value, firstParams.Parameters[0].Value)
+        const conn = await oracle.getConnection(params)
+        const result = await conn.execute('SELECT * FROM OIT#JTS234.DOWN_SCHEDULE')
+        week = await parseDatabase(result, byuID)
+        return week
+    } catch (err) {
+        console.log('It appears you are not connected to AWS CLI. PLease connect and try again')
+        process.exit()
+    }
+}
+
 async function printWeek(week) {
-    let size = 3
-    let i, j, p
-    let width = process.stdout.columns - 10
-    let mod = math.floor(width / 7)
-
-    let topChar = '_'
-    let sideChar = '|'
-
-    /*for (i = 0; i < size; i++) {
-        if (i != size-1) {
-            process.stdout.write('\n')
-        }
-        for (j = 0; j < width; j++) {
-            if ((j % mod == 1 && i != 0 && i != size-1) && (j - mod != 0) && (j + mod != width)  || (j == 0 && i !=0 && i != size-1)|| (j == width-1 && i !=0 && i != size-1)) {
-                process.stdout.write(sideChar)
-            }
-            if (i == 0) {
-                process.stdout.write(topChar)
-                if ((i == 0 ) && (j == width - 10)) {
-                    process.stdout.write('________')
-                }
-            } else {
-                process.stdout.write(" ")
-            }
-        }
-    }*/
-    size = 10
-
-    for (i = 0; i < size; i++) {
-        if (i != 0) {
-            process.stdout.write('\n')
-        }
-        for (j = 0; j < width; j++) {
-            if ((j % mod == 1 && i != 0 && i != size-1) && (j - mod != 0) && (j + mod != width)  || (j == 0 && i !=0 && i != size-1)|| (j == width-1 && i !=0 && i != size-1)) {
-                process.stdout.write(sideChar)
-            }
-            if (i == 0 || i == size-1) {
-                process.stdout.write(topChar)
-                if ((i == 0 || i == size-1) && (j == width - 10)) {
-                    process.stdout.write('________')
-                }
-            } else {
-                process.stdout.write(" ")
-            }
-        }
+    if (week.Monday.length != 0) {
+        console.table('Monday: ')
+        console.table(week.Monday, ['name', 'building', 'startTime', 'endTime'])
+    }
+    if (week.Tuesday.length != 0) {
+        console.table('Tuesday: ')
+        console.table(week.Tuesday, ['name', 'building', 'startTime', 'endTime'])
+    }
+    if (week.Wednesday.length != 0) {
+        console.table('Wednesday: ')
+        console.table(week.Wednesday, ['name', 'building', 'startTime', 'endTime'])
+    }
+    if (week.Thursday.length != 0) {
+        console.table('Thursday: ')
+        console.table(week.Thursday, ['name', 'building', 'startTime', 'endTime'])
+    }
+    if (week.Friday.length != 0) {
+        console.table('Friday: ')
+        console.table(week.Friday, ['name', 'building', 'startTime', 'endTime'])
+    }
+    if (week.Saturday.length != 0) {
+        console.table('Saturday: ')
+        console.table(week.Saturday, ['name', 'building', 'startTime', 'endTime'])
+    }
+    if (week.Sunday.length != 0) {
+        console.table('Sunday: ')
+        console.table(week.Sunday, ['name', 'building', 'startTime', 'endTime'])
     }
 
 }
@@ -173,43 +202,42 @@ async function printWeek(week) {
 
 async function parseDatabase(result, byuID) {
     let week = new classes.Week
-    let daysArray = []
     for (let i = 0; i < result.rows.length; ++i){
-        daysArray = result.rows[i].DAYS.split('')
+        let day = result.rows[i].DAYS
+        let online = result.rows[i].IS_VIRTUAL
         let startTime = result.rows[i].START_TIME
         let endTime = result.rows[i].END_TIME
         let building = result.rows[i].BUILDING
         let room = result.rows[i].ROOM
         let className = result.rows[i].CLASS_NAME
         let databaseBYUID = result.rows[i].BYU_ID
-        if (byuID == databaseBYUID && startTime!= null) {
-        for (let j = 0; j < daysArray.length; j++) {
-            switch (daysArray[j]) {
+        if (byuID == databaseBYUID) {
+            switch (day) {
                 case '0':
-                    week.Monday.push(new WeekCourse(className, building, room, startTime, endTime))
+                    week.Monday.push(new classes.WeekCourse(className, building, room, startTime, endTime, online))
                     break
                 case '1':
-                    week.Tuesday.push(new classes.WeekCourse(className, building, room, startTime, endTime))
+                    week.Tuesday.push(new classes.WeekCourse(className, building, room, startTime, endTime, online))
                     break
                 case '2':
-                    week.Wednesday.push(new classes.WeekCourse(className, building, room, startTime, endTime))
+                    week.Wednesday.push(new classes.WeekCourse(className, building, room, startTime, endTime, online))
                     break
                 case '3':
-                    week.Thursday.push(new classes.WeekCourse(className, building, room, startTime, endTime))
+                    week.Thursday.push(new classes.WeekCourse(className, building, room, startTime, endTime, online))
                     break
                 case '4':
-                    week.Friday.push(new classes.WeekCourse(className, building, room, startTime, endTime))
+                    week.Friday.push(new classes.WeekCourse(className, building, room, startTime, endTime, online))
                     break
                 case '5':
-                    week.Saturday.push(new classes.WeekCourse(className, building, room, startTime, endTime))
+                    week.Saturday.push(new classes.WeekCourse(className, building, room, startTime, endTime, online))
                     break
                 case '6':
-                    week.Sunday.push(new classes.WeekCourse(className, building, room, startTime, endTime))
+                    week.Sunday.push(new classes.WeekCourse(className, building, room, startTime, endTime, online))
+                    break
+                case -1:
                     break
             }
         }
-        }
-
     }
     return week
 }
@@ -217,23 +245,25 @@ async function parseDatabase(result, byuID) {
 
 function dayNum(day) {
     switch (day) {
-        case 'M':
+        case -1:
+            return -1;
+        case 'M': case 'Monday':
             return 0;
-        case "T":
+        case "T": case 'Tuesday':
             return 1;
-        case "W":
+        case "W" : case  'Wednesday':
             return 2;
-        case 'Th':
+        case 'Th' : case  'Thursday':
             return 3;
-        case "F":
+        case "F" : case  'Friday':
             return 4;
-        case 'S':
+        case 'S' : case  'Saturday':
             return 5;
-        case "Su":
+        case "Su" : case  'Sunday':
             return 6;
     }
 }
 
 
 //Export Functions
-module.exports = {testOracleConnectivityAws, getOracleCredentials, writeDatabase, dayNum, readDatabase}
+module.exports = {testOracleConnectivityAws, getOracleCredentials, writeDatabase, dayNum, printWeek, editDatabase, removeDownTime}
