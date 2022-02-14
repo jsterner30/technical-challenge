@@ -214,25 +214,25 @@ async function parseDatabase(result, byuID) {
         if (byuID == databaseBYUID) {
             switch (day) {
                 case '0':
-                    week.Monday.push(new classes.WeekCourse(className, building, room, startTime, endTime, online))
+                    week.Monday.push(new classes.WeekCourse(className, building, room, startTime, endTime, online, convertTime(startTime) ))
                     break
                 case '1':
-                    week.Tuesday.push(new classes.WeekCourse(className, building, room, startTime, endTime, online))
+                    week.Tuesday.push(new classes.WeekCourse(className, building, room, startTime, endTime, online, convertTime(startTime)))
                     break
                 case '2':
-                    week.Wednesday.push(new classes.WeekCourse(className, building, room, startTime, endTime, online))
+                    week.Wednesday.push(new classes.WeekCourse(className, building, room, startTime, endTime, online, convertTime(startTime)))
                     break
                 case '3':
-                    week.Thursday.push(new classes.WeekCourse(className, building, room, startTime, endTime, online))
+                    week.Thursday.push(new classes.WeekCourse(className, building, room, startTime, endTime, online, convertTime(startTime)))
                     break
                 case '4':
-                    week.Friday.push(new classes.WeekCourse(className, building, room, startTime, endTime, online))
+                    week.Friday.push(new classes.WeekCourse(className, building, room, startTime, endTime, online, convertTime(startTime)))
                     break
                 case '5':
-                    week.Saturday.push(new classes.WeekCourse(className, building, room, startTime, endTime, online))
+                    week.Saturday.push(new classes.WeekCourse(className, building, room, startTime, endTime, online, convertTime(startTime)))
                     break
                 case '6':
-                    week.Sunday.push(new classes.WeekCourse(className, building, room, startTime, endTime, online))
+                    week.Sunday.push(new classes.WeekCourse(className, building, room, startTime, endTime, online, convertTime(startTime)))
                     break
                 case -1:
                     break
@@ -264,6 +264,11 @@ function dayNum(day) {
     }
 }
 
+function convertTime(time) {
+    let str1 = time.split(":")
+    let totalSecs = parseInt(str1[0] * 3600 + str1[1] * 60)
+    return totalSecs
+}
 
 //Export Functions
-module.exports = {testOracleConnectivityAws, getOracleCredentials, writeDatabase, dayNum, printWeek, editDatabase, removeDownTime}
+module.exports = {testOracleConnectivityAws, getOracleCredentials, writeDatabase, dayNum, printWeek, editDatabase, removeDownTime, convertTime}

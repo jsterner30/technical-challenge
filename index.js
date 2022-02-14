@@ -2,10 +2,14 @@ const functions = require("./lib.js")
 const database = require("./database.js")
 
 async function main() {
+    const delay = ms => new Promise(res => setTimeout(res, ms))
+    await functions.printProgram()
+    await delay(2000)
+    console.clear()
     await database.getOracleCredentials()
     await database.testOracleConnectivityAws()
     await functions.login()
-    console.clear()
+    await delay(2000)
 
     let time = functions.getCurrTime()
     let needTime = 0;
@@ -16,7 +20,8 @@ async function main() {
     let buildingNames = await functions.getBuildingNames()
     buildingLocs = functions.scanArray(buildingNames, buildingLocs)
     let studentSchedule = await functions.getStudentSchedule()
-    const delay = ms => new Promise(res => setTimeout(res, ms))
+
+    console.clear();
     let mainResponse = await functions.mainMenu()
 
     while (mainResponse != 5) {

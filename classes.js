@@ -31,11 +31,12 @@ class Course {
 }
 
 class WeekCourse {
-    constructor(name, building, room, startTime, endTime, online) {
+    constructor(name, building, room, startTime, endTime, online, startTimeSecs) {
         this.name = name
         this.building = building
         this.room = room
         this.startTime = startTime
+        this.timeSecs = startTimeSecs
         this.endTime = endTime
         this.online = online
     }
@@ -58,7 +59,16 @@ class Week {
         this.Friday = []
         this.Saturday = []
         this.Sunday = []
-        this.OnlineClasses = []
+    }
+
+    sorter() {
+        this.Monday.sort((a, b) => parseFloat(a.timeSecs) - parseFloat(b.timeSecs));
+        this.Tuesday.sort((a, b) => parseFloat(a.timeSecs) - parseFloat(b.timeSecs));
+        this.Wednesday.sort((a, b) => parseFloat(a.timeSecs) - parseFloat(b.timeSecs));
+        this.Thursday.sort((a, b) => parseFloat(a.timeSecs) - parseFloat(b.timeSecs));
+        this.Friday.sort((a, b) => parseFloat(a.timeSecs) - parseFloat(b.timeSecs));
+        this.Saturday.sort((a, b) => parseFloat(a.timeSecs) - parseFloat(b.timeSecs));
+        this.Sunday.sort((a, b) => parseFloat(a.timeSecs) - parseFloat(b.timeSecs));
     }
 
     at(number) {

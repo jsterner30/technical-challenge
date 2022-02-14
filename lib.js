@@ -42,15 +42,24 @@ const studentInfoOptions = {
     }
 }
 
+const personOptions = {
+    url: `https://api.byu.edu:443/byuapi/persons/v3/${byuID}`,
+    method: 'GET',
+    headers: {
+        'Authorization': `Bearer ${token}`
+    }
+}
+
+
 async function login() {
     byuID = await getbyuID()
     token = await getWSO2()
     studentInfoOptions.url = `https://api.byu.edu:443/byuapi/students/v3/${byuID}/enrolled_classes?year_terms=20221`
+    personOptions.url = `https://api.byu.edu:443/byuapi/persons/v3/${byuID}`
 
     studentInfoOptions.headers =  {
         'Authorization': `Bearer ${token}`
     }
-
     buildingNameOptions.headers = {
         'Authorization': `Bearer ${token}`
     }
@@ -60,9 +69,23 @@ async function login() {
     roomOptions.headers = {
         'Authorization': `Bearer ${token}`
     }
+    personOptions.headers = {
+        'Authorization': `Bearer ${token}`
+    }
     await testAPIS()
+    await welcome()
 }
 
+async function welcome(){
+    let info = await axios(personOptions)
+    let first_name = info.data.basic.preferred_first_name.value
+    console.clear()
+    console.log(`Hello ${first_name}`)
+}
+
+async function printProgram(){
+    console.log('Welcome to Downtime Scheduler');
+}
 
 async function getbyuID() {
     const answer2 = await inquirer
@@ -99,7 +122,7 @@ async function getWSO2() {
 }
 
 async function testAPIS() {
-    console.log('You should be subscribed to the following APIs:\nStudents\nAcademicClassScheduleClassRoom\nMobileLocationService\n')
+    console.log('You should be subscribed to the following APIs:\nStudents\nAcademicClassScheduleClassRoom\nMobileLocationService\nPersons\n')
     console.log('Testing API connections...')
     try {
         let j = await axios(buildingNameOptions)
@@ -120,6 +143,13 @@ async function testAPIS() {
     }catch (err) {
         console.log('It appears you are not subscribed to the Students API, or your Authorization Token is incorrect')
         console.log('Please subscribe to the Students API and try again')
+        process.exit()
+    }
+    try{
+        let y = await axios(personOptions)
+    }catch (err) {
+        console.log('It appears you are not subscribed to the Persons API, or your Authorization Token is incorrect')
+        console.log('Please subscribe to the Persons API and try again')
         process.exit()
     }
     console.log('You are connected to all necessary APIs')
@@ -147,7 +177,7 @@ async function mainMenu() {
         case "Add downtime to my current class schedule":
             return 2
             break
-        case "View current downtime schedule":
+        case "View current schedule":
             return 3
             break
         case "Quit":
@@ -300,14 +330,14 @@ async function getStudentSchedule() {
 
 async function getStudentFreeTime(studentScheduleArray) {
     for (let k = 0; k < studentScheduleArray.length; k++) {
-        let timeSecs = convertTime(time);
+        let timeSecs = database.convertTime(time);
         let startTime = buildingArray[i].roomArray[j].weekScheduleArray[dayNumber][k][0]
         let endTime = buildingArray[i].roomArray[j].weekScheduleArray[dayNumber][k][1]
-        let startTimeSecs = convertTime(startTime)
-        let endTimeSecs = convertTime(endTime)
+        let startTimeSecs = database.convertTime(startTime)
+        let endTimeSecs = database.convertTime(endTime)
         if (timeSecs < startTimeSecs) {
             if (buildingArray[i].roomArray[j].weekScheduleArray[dayNumber][k - 1]) {
-                if (timeSecs > convertTime(buildingArray[i].roomArray[j].weekScheduleArray[dayNumber][k - 1][0]) && startTimeSecs - timeSecs > needTime) {
+                if (timeSecs > database.convertTime(buildingArray[i].roomArray[j].weekScheduleArray[dayNumber][k - 1][0]) && startTimeSecs - timeSecs > needTime) {
                     freeTime.push(buildingArray[i].roomArray[j].number + " until " + startTime)
                 }
             } else if (startTimeSecs - timeSecs > needTime) {
@@ -501,14 +531,14 @@ async function getFreeRooms(buildingArray, buildingName, day, time, roomType, ne
                 if (buildingArray[i].roomArray[j].description == roomType){
                     if (buildingArray[i].roomArray[j].weekScheduleArray[dayNumber]) {
                         for (let k = 0; k < buildingArray[i].roomArray[j].weekScheduleArray[dayNumber].length; k++) {
-                            let timeSecs = await convertTime(time);
+                            let timeSecs = await database.convertTime(time);
                             let startTime = buildingArray[i].roomArray[j].weekScheduleArray[dayNumber][k][0]
                             let endTime = buildingArray[i].roomArray[j].weekScheduleArray[dayNumber][k][1]
-                            let startTimeSecs = convertTime(startTime)
-                            let endTimeSecs = convertTime(endTime)
+                            let startTimeSecs = database.convertTime(startTime)
+                            let endTimeSecs = database.convertTime(endTime)
                             if (timeSecs < startTimeSecs) {
                                 if (buildingArray[i].roomArray[j].weekScheduleArray[dayNumber][k - 1]) {
-                                    if (timeSecs > convertTime(buildingArray[i].roomArray[j].weekScheduleArray[dayNumber][k - 1][0]) && startTimeSecs - timeSecs > needTime) {
+                                    if (timeSecs > database.convertTime(buildingArray[i].roomArray[j].weekScheduleArray[dayNumber][k - 1][0]) && startTimeSecs - timeSecs > needTime) {
                                         freeObj.push(new classes.FreeRoom(buildingArray[i].roomArray[j].number, startTime))
                                     }
                                 } else if (startTimeSecs - timeSecs > needTime) {
@@ -583,26 +613,23 @@ function getCurrTime() {
     let currentTime = hours + ":" + minutes;
     return currentTime;
 }
-function convertTime(time) {
-    let str1 = time.split(":")
-    let totalSecs = parseInt(str1[0] * 3600 + str1[1] * 60)
-    return totalSecs
-}
+
 
 async function printStudSched() {
     console.log("Here is your current schedule:")
     let weekSched = await database.editDatabase(byuID)
+    weekSched.sorter();
     await database.printWeek(weekSched)
 }
 
 
 async function checkTime(studSched, time, days, message) {
-    let newTime = convertTime(time)
+    let newTime = database.convertTime(time)
      for (let i = 0; i < studSched.length; i++) {
          if (studSched[i].online != true) {
              for (let j = 0; j < studSched[i].days.length; j++) {
                  for (let k = 0; k < days.length; k++) {
-                     if (studSched[i].days[j] == days[k] && convertTime(studSched[i].startTime) <= newTime && newTime <= convertTime(studSched[i].endTime)) {
+                     if (studSched[i].days[j] == days[k] && database.convertTime(studSched[i].startTime) <= newTime && newTime <= database.convertTime(studSched[i].endTime)) {
                          console.log(`It looks like you are busy on ${letterToDay(days[k])} at${time} with ${studSched[i].name}`)
                          console.log(message)
                          return true;
@@ -623,9 +650,10 @@ async function checkOnlineClasses(studSched, buildingArray) {
     let userTime
     let needTime
     let roomType = "CLASSROOM"
-    for (let i = 0; i < studSched.length; i++) {
-        if (studSched[i].online == true) {
-            console.log(`${studSched[i].name} is an online class`)
+    try {
+        for (let i = 0; i < studSched.length; i++) {
+            if (studSched[i].online == true) {
+                console.log(`${studSched[i].name} is an online class`)
                 let answerDays = await inquirer
                     .prompt([{
                         name: "day",
@@ -671,7 +699,7 @@ async function checkOnlineClasses(studSched, buildingArray) {
                             choices: buildingArray,
                             message: `In what BYU building will you take ${studSched[i].name}?`
                         }])
-                    let daysAvailable = await checkRooms(answer4.building, buildingArray, studSched, days, userTime, roomType, needTime, daysArray, needTime, checkOnlineClasses)
+                    let daysAvailable = await checkRooms(answer4.building, buildingArray, studSched, days, userTime, roomType, needTime, daysArray, needTime, true)
                     let answer5 = await inquirer
                         .prompt([{
                             name: "room",
@@ -679,8 +707,8 @@ async function checkOnlineClasses(studSched, buildingArray) {
                             choices: daysAvailable,
                             message: `In what room would you like to take ${studSched[i].name}?`
                         }])
-                    for (let t = 0; t < buildingArray.length; t++ ) {
-                        if (answer4.building == buildingArray[t].name){
+                    for (let t = 0; t < buildingArray.length; t++) {
+                        if (answer4.building == buildingArray[t].name) {
                             buildingCode = buildingArray[t].code
                         }
                     }
@@ -695,13 +723,15 @@ async function checkOnlineClasses(studSched, buildingArray) {
                     console.log("Your schedule has been updated")
                     return studSched
                 }
+            } else {
+                continue
             }
-        else {
-            continue
         }
+        console.log('It appears you have no online classes')
+        return studSched
+    }catch(error) {
+        return studSched
     }
-    console.log('It appears you have no online classes')
-    return studSched
 }
 
 async function editDownTime() {
@@ -738,7 +768,6 @@ async function editDownTime() {
     }
     console.clear()
     console.log("Your schedule has been updated")
-
 }
 
 async function editOnlineClass() {
@@ -831,7 +860,7 @@ async function addDownTime(studSched, buildingArray) {
                 choices: buildingArray,
                 message: `In what BYU building will you spend your downtime?`
             }])
-        let daysAvailable = await checkRooms(answer4.building, buildingArray, studSched, days, userTime, roomType, needTime, addDownTime)
+        let daysAvailable = await checkRooms(answer4.building, buildingArray, studSched, days, userTime, roomType, needTime, false)
         if (!daysAvailable) {
             return
         } else {
@@ -873,7 +902,7 @@ async function confirm(question) {
     }
 }
 
-async function checkRooms(building, buildingArray, studSched, days, userTime, roomType, needTime, functionName) {
+async function checkRooms(building, buildingArray, studSched, days, userTime, roomType, needTime, needOnlineFunc) {
     let daysAvailable = [];
     let freeRoomArray = []
     let fullArray = [];
@@ -898,7 +927,12 @@ async function checkRooms(building, buildingArray, studSched, days, userTime, ro
             message: `It appears there are no rooms available in the ${building}. Would you like to schedule a different building?`
         }])
         if (answer.names) {
-            await functionName(studSched, buildingArray)
+            if (needOnlineFunc) {
+                await checkOnlineClasses(studSched, buildingArray)
+            }
+            else {
+                await addDownTime(studSched, buildingArray)
+            }
         }
         else {
             return
@@ -950,5 +984,6 @@ function letterToDay(letter) {
 //Export Functions
 module.exports = {getLocation, getBuildingPos, getBuilding, getBuildingNames, scanArray, askUserBuilding,
     getBuildingRoomSchedule, getFreeRooms, getCurrDay, getCurrTime, getBusyTimes, mainMenu, askUserNeedTime,
-    getStudentSchedule, login, printStudSched, checkOnlineClasses, isEmpty, addDownTime, confirm, editDownTime, editOnlineClass}
+    getStudentSchedule, login, printStudSched, checkOnlineClasses, isEmpty, addDownTime, confirm, editDownTime,
+    editOnlineClass, printProgram}
 
