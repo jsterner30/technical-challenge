@@ -6,9 +6,12 @@ const datePicker = require('inquirer-datepicker-prompt')
 const inquirer = require("inquirer")
 inquirer.registerPrompt('datetime', datePicker)
 
+/**
+ * Api variables and information
+ */
 let byuID
 let token
-let regExp = /[a-zA-z]/g;
+let regExp = /[a-zA-z]/g
 
 const buildingOptions = {
     url: 'https://api.byu.edu:443/domains/mobile/location/v2/buildings',
@@ -50,7 +53,10 @@ const personOptions = {
     }
 }
 
-
+/**
+ * Logs user in by calling functions that get BYU ID/WSO2 and test API connections
+ *@returns void
+ */
 async function login() {
     byuID = await getbyuID()
     token = await getWSO2()
@@ -76,6 +82,11 @@ async function login() {
     await welcome()
 }
 
+
+/**
+ * Gets name from Persons API and welcomes the user
+ * @returns void
+ */
 async function welcome(){
     let info = await axios(personOptions)
     let first_name = info.data.basic.preferred_first_name.value
@@ -83,10 +94,29 @@ async function welcome(){
     console.log(`Hello ${first_name}`)
 }
 
-async function printProgram(){
-    console.log('Welcome to Downtime Scheduler');
+/**
+ * Prints a welcome message
+ * @returns void
+ */
+async function printProgramName(){
+    console.log('Welcome to Downtime Scheduler')
 }
 
+/**
+ * Prints the program description
+ * @returns void
+ */
+async function printProgramDescription(){
+    console.log('This program allows you to schedule downtime during your off hours on campus' +
+        '\nIt searches building classrooms at your desired time and provides you with a list of available rooms' +
+        '\nThe program also allows you to schedule study time for online classes' +
+        '\nEnjoy!')
+}
+
+/**
+ * Asks the user to input their BYU ID and defeats SQL injections
+ * @returns {Promise<string>} The users BYU ID
+ */
 async function getbyuID() {
     const answer2 = await inquirer
         .prompt([{
@@ -104,6 +134,10 @@ async function getbyuID() {
     }
 }
 
+/**
+ * Asks the user to input their WSO2 Token and checks for correct sizing
+ * @returns {Promise<string>} The users WSO2 Token
+ */
 async function getWSO2() {
     const answer2 = await inquirer
         .prompt([{
@@ -117,10 +151,14 @@ async function getWSO2() {
         await getWSO2()
     }
     else {
-        return answer;
+        return answer
     }
 }
 
+/**
+ * Tests the all four APIS and returns an error message if the user is not connected to any API
+ * @returns void
+ */
 async function testAPIS() {
     console.log('You should be subscribed to the following APIs:\nStudents\nAcademicClassScheduleClassRoom\nMobileLocationService\nPersons\n')
     console.log('Testing API connections...')
@@ -155,8 +193,10 @@ async function testAPIS() {
     console.log('You are connected to all necessary APIs')
 }
 
-
-
+/**
+ * Main menu function that asks the user what they want to do
+ * @returns {Promise<number>} Returns a number that the switch uses in the main function to direct program flow
+ */
 async function mainMenu() {
     const answer = await inquirer
         .prompt([{
@@ -192,36 +232,49 @@ async function mainMenu() {
     }
 }
 
-
-//Get User Location
+/**
+ * Gets the users longitude and latitude based on their IP address
+ * THIS FUNCTION IS NO LONGER IN USE
+ * @returns {Promise<(number|number)[]>} Returns the users lat and lon
+ */
 const getLocation = async () => {
     try {
-        const resp = await axios.get('https://api64.ipify.org?format=json');
-        let ip = resp.data.ip;
-        let location =  await axios.get(`http://api.ipstack.com/${ip}?access_key=890edec894569e79839a20c72851da72`);
-        let lon = location.data.longitude;
-        let lat = location.data.latitude;
-        return [lat, lon];
+        const resp = await axios.get('https://api64.ipify.org?format=json')
+        let ip = resp.data.ip
+        let location =  await axios.get(`http://api.ipstack.com/${ip}?access_key=890edec894569e79839a20c72851da72`)
+        let lon = location.data.longitude
+        let lat = location.data.latitude
+        return [lat, lon]
     } catch (err) {
         console.log(err)
     }
 }
 
+/**
+ * Gets the name and info of every building on campus
+ * @returns {Promise<*[]>} Returns an array of buildings
+ */
 async function getBuildingNames() {
     try {
         buildingNameOptions.url = 'https://api.byu.edu:443/domains/legacy/academic/classschedule/classroom/v1/20221'
-        let buildingNames = [];
-        const info = await axios(buildingNameOptions);
+        let buildingNames = []
+        const info = await axios(buildingNameOptions)
         const name = info.data.ClassRoomService.response
         for (let i = 0; i < name.buildings.length; i++) {
-            buildingNames.push(name.buildings[i].building_name);
+            buildingNames.push(name.buildings[i].building_name)
         }
-        return buildingNames;
+        return buildingNames
     }catch(err) {
-        console.log(err);
+        console.log(err)
     }
 }
 
+/**
+ * Checks if there are rooms available in a building. If not, prints rooms available
+ * @param freeRoomArray A list of free rooms in a building
+ * @param buildingName the name of the user chosen building
+ * @returns {Promise<boolean>} Returns true if there are no rooms available
+ */
 async function isEmpty(freeRoomArray, buildingName){
     if (freeRoomArray.length === 0){
         console.log(`It appears there are no available rooms in the ${buildingName} for the amount of time you need.`)
@@ -240,67 +293,88 @@ async function isEmpty(freeRoomArray, buildingName){
     }
     else {
         console.log(`The following classrooms are available in the ${buildingName}:`)
-        console.table(freeRoomArray)
-        return false;
+        console.table(freeRoomArray, ['Room_Number', 'Available_Until'])
+        return false
     }
 }
 
+/**
+ * Gets a rooms buildings from the ClassRoomClassSchedule API
+ * @param buildingCode The code of the desired building
+ * @returns {Promise<*[]>} Returns an array of Room objects
+ */
 async function getBuildingRooms(buildingCode) {
     try {
         buildingNameOptions.url = `https://api.byu.edu:443/domains/legacy/academic/classschedule/classroom/v1/20221/${buildingCode}`
-        let roomObjects = [];
-        const response = await axios(buildingNameOptions);
-        const rooms = response.data.ClassRoomService.response.roomList;
+        let roomObjects = []
+        const response = await axios(buildingNameOptions)
+        const rooms = response.data.ClassRoomService.response.roomList
         for (let i = 0; i < rooms.length-1; i++) {
-            roomOptions.url = `https://api.byu.edu:443/domains/legacy/academic/classschedule/classroom/v1/20221/${buildingCode}` + `/${rooms[i].room_number}/schedule`;
+            roomOptions.url = `https://api.byu.edu:443/domains/legacy/academic/classschedule/classroom/v1/20221/${buildingCode}` + `/${rooms[i].room_number}/schedule`
             let response = await axios(roomOptions)
             let roomInfo = response.data.ClassRoomService.response
-            roomObjects.push(new classes.Room(roomInfo.room, roomInfo.room_desc));
+            roomObjects.push(new classes.Room(roomInfo.room, roomInfo.room_desc))
             roomObjects[i].scheduleArray = roomInfo.schedules
         }
-        return roomObjects;
+        return roomObjects
     } catch(err) {
         console.log(err)
     }
 }
 
+/**
+ * Gets building long and lats from the Mobile Location API
+ * THIS FUNCTION IS NO LONGER IN USE
+ * @returns {Promise<*[]>} Returns an array of building locations
+ */
 async function getBuildingPos() {
     try {
         buildingOptions.url = 'https://api.byu.edu:443/domains/mobile/location/v2/buildings'
-        let buildingObjects = [];
-        const response = await axios(buildingOptions);
+        let buildingObjects = []
+        const response = await axios(buildingOptions)
         for (let i = 0; i < response.data.length; i++) {
-            buildingObjects.push(new classes.Building(response.data[i].name, response.data[i].acronym, response.data[i].latitude, response.data[i].longitude));
+            buildingObjects.push(new classes.Building(response.data[i].name, response.data[i].acronym, response.data[i].latitude, response.data[i].longitude))
         }
-        return buildingObjects;
+        return buildingObjects
     } catch (err) {
-        console.log(err);
+        console.log(err)
     }
 }
 
+/**
+ * Returns the users building based on use location
+ * THIS FUNCTION IS NO LONGER IN USE
+ * @param personArray Lon and lat of the person
+ * @param buildingArray Building array with lons and lats
+ * @returns void
+ */
 async function getBuilding(personArray, buildingArray) {
     try {
-        let smallDistance = 100000;
-        let arrayPos;
+        let smallDistance = 100000
+        let arrayPos
         for (let i = 0; i < buildingArray.length; i++){
             let distance = getDistBetween(personArray[0], personArray[1], buildingArray[i].lat, buildingArray[i].lon)
             if (distance < smallDistance){
-                smallDistance = distance;
-                arrayPos = i;
+                smallDistance = distance
+                arrayPos = i
             }
         }
     } catch(err) {
-        console.log(err);
+        console.log(err)
     }
 }
 
+/**
+ * Gets a students class schedule from the Students API
+ * @returns {Promise<*[]>} Returns an array of classes for a student
+ */
 async function getStudentSchedule() {
     let dayArray = []
     let studentSchedule = []
     try {
-        const info = await axios(studentInfoOptions);
+        const info = await axios(studentInfoOptions)
         for (let i = 0; i < info.data.values.length; i++) {
-            dayArray = [];
+            dayArray = []
             let className = info.data.values[i].course_title.value
             let id = info.data.values[i].curriculum_id.value
             let building = info.data.values[i].when_taught.object_array[0].building.value
@@ -322,56 +396,20 @@ async function getStudentSchedule() {
             studentSchedule.push(new classes.Course(className, id, studName, building, room, startTime, endTime, online, dayArray))
         }
     }catch(err) {
-        console.log(err);
+        console.log(err)
     }
     database.writeDatabase(studentSchedule, byuID)
     return studentSchedule
 }
 
-async function getStudentFreeTime(studentScheduleArray) {
-    for (let k = 0; k < studentScheduleArray.length; k++) {
-        let timeSecs = database.convertTime(time);
-        let startTime = buildingArray[i].roomArray[j].weekScheduleArray[dayNumber][k][0]
-        let endTime = buildingArray[i].roomArray[j].weekScheduleArray[dayNumber][k][1]
-        let startTimeSecs = database.convertTime(startTime)
-        let endTimeSecs = database.convertTime(endTime)
-        if (timeSecs < startTimeSecs) {
-            if (buildingArray[i].roomArray[j].weekScheduleArray[dayNumber][k - 1]) {
-                if (timeSecs > database.convertTime(buildingArray[i].roomArray[j].weekScheduleArray[dayNumber][k - 1][0]) && startTimeSecs - timeSecs > needTime) {
-                    freeTime.push(buildingArray[i].roomArray[j].number + " until " + startTime)
-                }
-            } else if (startTimeSecs - timeSecs > needTime) {
-                freeTime.push(buildingArray[i].roomArray[j].number + " until " + startTime)
-            }
-        }
-    }
-    return freeTime
-}
-
-function getDistanceBetween(lat1, lon1, lat2, lon2, unit) {
-    if ((lat1 == lat2) && (lon1 == lon2)) {
-        return 0;
-    }
-    else {
-        let radlat1 = Math.PI * lat1/180;
-        let radlat2 = Math.PI * lat2/180;
-        let theta = lon1-lon2;
-        let radtheta = Math.PI * theta/180;
-        let dist = Math.sin(radlat1) * Math.sin(radlat2) + Math.cos(radlat1) * Math.cos(radlat2) * Math.cos(radtheta);
-        if (dist > 1) {
-            dist = 1;
-        }
-        dist = Math.acos(dist);
-        dist = dist * 180/Math.PI;
-        dist = dist * 60 * 1.1515;
-        if (unit=="K") { dist = dist * 1.609344 }
-        if (unit=="N") { dist = dist * 0.8684 }
-        return dist;
-    }
-}
-
+/**
+ * Shortens the building array by cutting out all buildings that are not used for teaching
+ * @param nameArray Array of building where classes are taught
+ * @param buildingLocs Array of all campus buildings
+ * @returns {*[]} Shortened array of buildings
+ */
 function scanArray(nameArray, buildingLocs){
-    let buildingLocations = [];
+    let buildingLocations = []
     for (let i = 0; i < buildingLocs.length; i++){
         for (let j = 0; j < nameArray.length; j++){
             if (nameArray[j] == buildingLocs[i].code){
@@ -379,24 +417,32 @@ function scanArray(nameArray, buildingLocs){
             }
         }
     }
-    return buildingLocations;
+    return buildingLocations
 }
 
+/**
+ * Gets the distance between two lats/lons
+ * THIS FUNCTION IS NO LONGER IN USE
+ * @param lat1
+ * @param lon1
+ * @param lat2
+ * @param lon2
+ * @returns {number}
+ */
 function getDistBetween(lat1, lon1, lat2, lon2){
     if ((lat1 == lat2) && (lon1 == lon2)) {
-        return 0;
+        return 0
     }
     else {
         return math.sqrt(math.pow((lat1 + lat2), 2) + math.pow((lon1 + lon2), 2))
     }
 }
 
-// Converts numeric degrees to radians
-function toRad(Value)
-{
-    return Value * Math.PI / 180;
-}
-
+/**
+ * Asks the user what building they want to search
+ * @param buildingArray Array of buildings
+ * @returns {Promise<*>} The building name
+ */
 async function askUserBuilding(buildingArray) {
     const answer = await inquirer
         .prompt([{
@@ -415,24 +461,34 @@ async function askUserBuilding(buildingArray) {
             },
         ])
         if (answer2.confirmAnswer){
-            return answer.name;
+            return answer.name
         }
         else {
             await askUserBuilding(buildingArray);
         }
 }
 
+/**
+ * Gets the room schedule of a building
+ * @param buildingName Name of the building
+ * @param buildingArray Array of buidlings
+ * @returns {Promise<*>} Updated array of buildings
+ */
 async function getBuildingRoomSchedule(buildingName, buildingArray) {
     for (let i = 0; i < buildingArray.length; i++) {
         if (buildingArray[i].name == buildingName) {
-            let roomObjectArray = await getBuildingRooms(buildingArray[i].code);
-            buildingArray[i].roomArray = roomObjectArray;
+            let roomObjectArray = await getBuildingRooms(buildingArray[i].code)
+            buildingArray[i].roomArray = roomObjectArray
         }
     }
-    return buildingArray;
+    return buildingArray
 }
 
-
+/**
+ * Asks the user how long they need a room
+ * @param question Message of the question
+ * @returns {Promise<number>} Number of minutes they will need the room
+ */
 async function askUserNeedTime(question){
     let seconds = 60
     const answer = await inquirer
@@ -444,14 +500,19 @@ async function askUserNeedTime(question){
         ])
     if (!answer.minutes && answer.minutes != 0){
         console.log("Please enter a number")
-        await askUserNeedTime();
+        await askUserNeedTime()
     }
     else {
         return seconds * answer.minutes
     }
 }
 
-
+/**
+ * Gets the busy times of the rooms in a building
+ * @param buildingArray Building Array
+ * @param buildingName Building Name
+ * @returns {Promise<*>} Updated building array
+ */
 async function getBusyTimes(buildingArray, buildingName){
     let busyTimeArray
     let tArray = []
@@ -479,25 +540,25 @@ async function getBusyTimes(buildingArray, buildingName){
                             switch (dayArray[l]) {
                                 case 'M':
                                     mArray.push(timeParse(time))
-                                    break;
+                                    break
                                 case "T":
                                     tArray.push(timeParse(time))
-                                    break;
+                                    break
                                 case "W":
                                     wArray.push(timeParse(time))
-                                    break;
+                                    break
                                 case 'Th':
                                     thArray.push(timeParse(time))
-                                    break;
+                                    break
                                 case "F":
                                     fArray.push(timeParse(time))
-                                    break;
+                                    break
                                 case 'S':
                                     sArray.push(timeParse(time))
-                                    break;
+                                    break
                                 case "Su":
                                     suArray.push(timeParse(time))
-                                    break;
+                                    break
                             }
                         }
                     }
@@ -519,19 +580,29 @@ async function getBusyTimes(buildingArray, buildingName){
             }
         }
     }
-    return buildingArray;
+    return buildingArray
 }
 
+/**
+ * Gets the free rooms based on the busy times of rooms in a building and the users needs
+ * @param buildingArray Array of buildings
+ * @param buildingName Name of desired building
+ * @param day Day the user wants to search
+ * @param time Time the user wants to search
+ * @param roomType Type of room the user wants to search (defualt "CLASSROOM")
+ * @param needTime How long the user needs the room
+ * @returns {Promise<*[]>} Returns an array of free rooms to be presented to the user
+ */
 async function getFreeRooms(buildingArray, buildingName, day, time, roomType, needTime) {
     let freeObj = []
-    const dayNumber = database.dayNum(day);
+    const dayNumber = database.dayNum(day)
     for (let i = 0; i < buildingArray.length; i++) {
         if (buildingArray[i].name == buildingName && buildingArray[i].roomArray) {
             for (let j = 0; j < buildingArray[i].roomArray.length; j++){
                 if (buildingArray[i].roomArray[j].description == roomType){
                     if (buildingArray[i].roomArray[j].weekScheduleArray[dayNumber]) {
                         for (let k = 0; k < buildingArray[i].roomArray[j].weekScheduleArray[dayNumber].length; k++) {
-                            let timeSecs = await database.convertTime(time);
+                            let timeSecs = await database.convertTime(time)
                             let startTime = buildingArray[i].roomArray[j].weekScheduleArray[dayNumber][k][0]
                             let endTime = buildingArray[i].roomArray[j].weekScheduleArray[dayNumber][k][1]
                             let startTimeSecs = database.convertTime(startTime)
@@ -554,6 +625,11 @@ async function getFreeRooms(buildingArray, buildingName, day, time, roomType, ne
     return freeObj
 }
 
+/**
+ * Parses days to be a use able array
+ * @param days String of days
+ * @returns {*|T[]} Array of days
+ */
 function daysParse(days){
     let dayArray = days.split("")
     for (let i = 0; i < dayArray.length; i++){
@@ -567,10 +643,15 @@ function daysParse(days){
     return dayArray
 }
 
+/**
+ * Parses the time to be a startTime and an endTime
+ * @param time Input time ("1:00-3:00")
+ * @returns {*|string[]} Time array with start time and end time
+ */
 function timeParse(time){
     let timeArray = time.split(" - ")
     for (let i = 0; i < timeArray.length; i++){
-        let hour = timeArray[i];
+        let hour = timeArray[i]
         if (hour.charAt(hour.length-1) == "p"){
             let newHourArray = hour.split(":")
             let newHour = parseInt(newHourArray[0])
@@ -578,51 +659,76 @@ function timeParse(time){
                 newHour += 12
             }
             newHour.toString()
-            timeArray[i] = newHour + ":" + newHourArray[1];
+            timeArray[i] = newHour + ":" + newHourArray[1]
         }
     }
     for (let i = 0; i < timeArray.length; i++){
         timeArray[i] = timeArray[i].substring(0, timeArray[i].length-1)
     }
-    return timeArray;
+    return timeArray
 }
 
+/**
+ * Adds the time a user needs to the start time to get an end time
+ * @param startTime Start time
+ * @param hourAdd Amount of hours to be added
+ * @param minAdd Amount of minutes to be added
+ * @returns {Promise<string>} Returns the endtime
+ */
 async function timeAdd(startTime, hourAdd, minAdd)  {
     let timeArray = startTime.split(":")
     let newHour = parseInt(timeArray[0])
-    newHour += hourAdd;
+    newHour += hourAdd
     let newMin = parseInt(timeArray[1])
-    newMin += minAdd * 60;
+    newMin += minAdd * 60
     let endTime = newHour.toString() + ':' + newMin.toString()
     return endTime
 }
 
+/**
+ * Gets the current day of the week
+ * @returns {string} Returns day of the week
+ */
 function getCurrDay() {
-    const weekday = ["S","M","T","W","Th","F","S"];
-    let today = new Date();
-    let day = weekday[today.getDay()];
-    let currentDay = day;
-    return currentDay;
+    const weekday = ["S","M","T","W","Th","F","S"]
+    let today = new Date()
+    let day = weekday[today.getDay()]
+    let currentDay = day
+    return currentDay
 }
 
+/**
+ * Gets the current time
+ * @returns {string} Returns the current time
+ */
 function getCurrTime() {
-    let today = new Date();
-    let hours = (today.getHours() + 11) % 12 + 1;
-    hours = hours > 12 ? hours + 12 : hours;
-    let minutes = today.getMinutes();
-    let currentTime = hours + ":" + minutes;
-    return currentTime;
+    let today = new Date()
+    let hours = (today.getHours() + 11) % 12 + 1
+    hours = hours > 12 ? hours + 12 : hours
+    let minutes = today.getMinutes()
+    let currentTime = hours + ":" + minutes
+    return currentTime
 }
 
-
+/**
+ * Prints the users current schedule by calling datbase functions
+ * @returns void
+ */
 async function printStudSched() {
     console.log("Here is your current schedule:")
     let weekSched = await database.editDatabase(byuID)
-    weekSched.sorter();
+    weekSched.sorter()
     await database.printWeek(weekSched)
 }
 
-
+/**
+ * Checks to see if a time is available in a students schedule
+ * @param studSched Student schedule
+ * @param time Start time
+ * @param days Desired days
+ * @param message Return message based on what function calls this function
+ * @returns {Promise<boolean>} True if student is busy at proposed time
+ */
 async function checkTime(studSched, time, days, message) {
     let newTime = database.convertTime(time)
      for (let i = 0; i < studSched.length; i++) {
@@ -632,7 +738,7 @@ async function checkTime(studSched, time, days, message) {
                      if (studSched[i].days[j] == days[k] && database.convertTime(studSched[i].startTime) <= newTime && newTime <= database.convertTime(studSched[i].endTime)) {
                          console.log(`It looks like you are busy on ${letterToDay(days[k])} at${time} with ${studSched[i].name}`)
                          console.log(message)
-                         return true;
+                         return true
                      }
                      else {
                          continue
@@ -641,9 +747,15 @@ async function checkTime(studSched, time, days, message) {
              }
          }
      }
-     return false;
+     return false
  }
 
+/**
+ * Checks to see if a student has an online class and allows the student to edit the classes schedule
+ * @param studSched Student schedule
+ * @param buildingArray Array of buildings
+ * @returns {Promise<*>} The students updated schedule
+ */
 async function checkOnlineClasses(studSched, buildingArray) {
     let daysArray
     let days
@@ -734,6 +846,10 @@ async function checkOnlineClasses(studSched, buildingArray) {
     }
 }
 
+/**
+ * Allows the user to edit downtime in the database
+ * @returns {Promise<boolean>} Returns false if the student has no downtime
+ */
 async function editDownTime() {
     let weekArray = []
     let classesArray = []
@@ -764,12 +880,16 @@ async function editDownTime() {
                 message: "What would you like to remove from your schedule?",
                 choices: classesArray
             }])
-        await database.removeDownTime(answer.downtime, byuID);
+        await database.removeDownTime(answer.downtime, byuID)
     }
     console.clear()
     console.log("Your schedule has been updated")
 }
 
+/**
+ * Allows the user to edit online class schedule if they have any
+ * @returns {Promise<boolean>} Returns false if the student has no online classes scheduled
+ */
 async function editOnlineClass() {
     let weekArray = []
     let classesArray = []
@@ -800,14 +920,19 @@ async function editOnlineClass() {
                 message: "What would you like to remove from your schedule?",
                 choices: classesArray
             }])
-        await database.removeDownTime(answer.onlineClasses, byuID);
+        await database.removeDownTime(answer.onlineClasses, byuID)
     }
     console.clear()
     console.log("Your schedule has been updated")
 }
 
+/**
+ * Allows the user to add downtime to schedule/database
+ * @param studSched Student schedule
+ * @param buildingArray Array of buildings
+ * @returns {Promise<*>} Updated student schedule
+ */
 async function addDownTime(studSched, buildingArray) {
-
     let daysArray = []
     let days
     let userTime
@@ -887,6 +1012,11 @@ async function addDownTime(studSched, buildingArray) {
     }
 }
 
+/**
+ * Asks a user a yes or no question
+ * @param question The message of the question
+ * @returns {Promise<boolean>} True or false based on user answer
+ */
 async function confirm(question) {
     let answer = await inquirer
         .prompt([{
@@ -902,16 +1032,28 @@ async function confirm(question) {
     }
 }
 
+/**
+ * Checks availability of rooms for online/donwtime scheduler functions
+ * @param building Building name
+ * @param buildingArray Array of building
+ * @param studSched Student schedule
+ * @param days Days desired
+ * @param userTime Time to check
+ * @param roomType Room type
+ * @param needTime Time the user needs
+ * @param needOnlineFunc True or false based on which function calls this function
+ * @returns {Promise<*[]>} Returns updated student schedule
+ */
 async function checkRooms(building, buildingArray, studSched, days, userTime, roomType, needTime, needOnlineFunc) {
-    let daysAvailable = [];
+    let daysAvailable = []
     let freeRoomArray = []
-    let fullArray = [];
+    let fullArray = []
     console.log('Calculating room availability...')
     console.log('This may take several moments...')
     for (let t = 0; t < days.length; t++) {
         let buildingLocsRooms = await getBuildingRoomSchedule(building, buildingArray)
-        buildingLocsRooms = await getBusyTimes(buildingLocsRooms, building);
-        freeRoomArray = await getFreeRooms(buildingLocsRooms, building, days[t], userTime, roomType, needTime);
+        buildingLocsRooms = await getBusyTimes(buildingLocsRooms, building)
+        freeRoomArray = await getFreeRooms(buildingLocsRooms, building, days[t], userTime, roomType, needTime)
         fullArray = fullArray.concat(freeRoomArray)
     }
     for (let i = 0; i < freeRoomArray.length; i++) {
@@ -945,10 +1087,16 @@ async function checkRooms(building, buildingArray, studSched, days, userTime, ro
     }
 }
 
+/**
+ * Returns the number of times a room is in an array
+ * @param array Room array
+ * @param value Room number
+ * @returns {number} The number of times the room appears
+ */
 function getOccurrence(array, value) {
-    let count = 0;
+    let count = 0
     if (array.length == 0){
-        return count;
+        return count
     }
     else {
         for (let j = 0; j < array.length; j++) {
@@ -956,10 +1104,15 @@ function getOccurrence(array, value) {
                 count++
             }
         }
-        return count;
+        return count
     }
 }
 
+/**
+ * Converts a letter day to a full word
+ * @param letter Letter day
+ * @returns {string} Full day word
+ */
 function letterToDay(letter) {
     switch (letter) {
         case 'M':
@@ -980,10 +1133,9 @@ function letterToDay(letter) {
 
 }
 
-
 //Export Functions
-module.exports = {getLocation, getBuildingPos, getBuilding, getBuildingNames, scanArray, askUserBuilding,
+module.exports = {getLocation, getBuildingPos, getBuildingNames, scanArray, askUserBuilding,
     getBuildingRoomSchedule, getFreeRooms, getCurrDay, getCurrTime, getBusyTimes, mainMenu, askUserNeedTime,
     getStudentSchedule, login, printStudSched, checkOnlineClasses, isEmpty, addDownTime, confirm, editDownTime,
-    editOnlineClass, printProgram}
+    editOnlineClass, printProgramName, printProgramDescription}
 

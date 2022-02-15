@@ -3,8 +3,10 @@ const database = require("./database.js")
 
 async function main() {
     const delay = ms => new Promise(res => setTimeout(res, ms))
-    await functions.printProgram()
+    await functions.printProgramName()
     await delay(2000)
+    await functions.printProgramDescription()
+    await delay(9000)
     console.clear()
     await database.getOracleCredentials()
     await database.testOracleConnectivityAws()
@@ -12,7 +14,7 @@ async function main() {
     await delay(2000)
 
     let time = functions.getCurrTime()
-    let needTime = 0;
+    let needTime = 0
     let day = functions.getCurrDay()
     let roomType = 'CLASSROOM'
     let needRepeat = true
@@ -21,13 +23,13 @@ async function main() {
     buildingLocs = functions.scanArray(buildingNames, buildingLocs)
     let studentSchedule = await functions.getStudentSchedule()
 
-    console.clear();
+    console.clear()
     let mainResponse = await functions.mainMenu()
 
     while (mainResponse != 5) {
         switch (mainResponse) {
             case 0:
-                needRepeat = true;
+                needRepeat = true
                 while (needRepeat) {
                     let buildingName = await functions.askUserBuilding(buildingLocs)
                     needTime = await functions.askUserNeedTime("How many minutes will you need the room?")
@@ -36,9 +38,9 @@ async function main() {
                     let buildingLocsRooms = await functions.getBuildingRoomSchedule(buildingName, buildingLocs)
                     buildingLocsRooms = await functions.getBusyTimes(buildingLocsRooms, buildingName)
                     let freeRoomArray = await functions.getFreeRooms(buildingLocsRooms, buildingName, day, time, roomType, needTime)
-                    needRepeat = await functions.isEmpty(freeRoomArray, buildingName);
+                    needRepeat = await functions.isEmpty(freeRoomArray, buildingName)
                 }
-                mainResponse = await functions.mainMenu();
+                mainResponse = await functions.mainMenu()
                 break
 
             case 1:
@@ -58,7 +60,7 @@ async function main() {
                 break
 
             case 3:
-                console.clear();
+                console.clear()
                 await functions.printStudSched()
                 await delay(3000)
                 mainResponse = await functions.mainMenu()
@@ -84,9 +86,10 @@ async function main() {
                 break
         }
     }
+    console.log('Have a great day!')
 }
 
-main();
+main()
 
 
 

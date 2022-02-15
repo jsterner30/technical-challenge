@@ -7,8 +7,8 @@ const classes = require('./classes.js')
 const params = {
     connectString: 'ora7gdev.byu.edu:1521/cescpy1.byu.edu'
 }
-oracle.outFormat = oracle.OBJECT;
-oracle.autoCommit = true;
+oracle.outFormat = oracle.OBJECT
+oracle.autoCommit = true
 
 //AWS Parameters
 let parameters = {
@@ -20,13 +20,21 @@ let parameters = {
 AWS.config.update({ region: 'us-west-2'})
 const ssm = new AWS.SSM()
 
-//Sets Oracle Params from AWS
+/**
+ * Set oracle creds so user can access DB
+ * @param username AWS username
+ * @param password AWS password
+ * @returns void
+ */
 const setOracleCredentials = async (username, password) => {
     params.user = username
     params.password = password
 }
 
-//Check if user is connected to AWS
+/**
+ * Check if user is connected to AWS
+ * @returns void
+ */
 const getOracleCredentials = async function () {
     console.log('Testing AWS CLI connection -- please wait')
     try {
@@ -39,6 +47,10 @@ const getOracleCredentials = async function () {
     }
 }
 
+/**
+ * Checks if user is connected to VPN
+ * @returns void
+ */
 testOracleConnectivityAws = async function(){
     try {
         console.log('Checking that your VPN is on -- please wait')
@@ -58,6 +70,10 @@ testOracleConnectivityAws = async function(){
     }
 }
 
+/**
+ * Deletes copy of table
+ * @returns void
+ */
 async function truncateTable() {
     try {
         const firstParams = await ssm.getParameters(parameters).promise()
@@ -71,10 +87,16 @@ async function truncateTable() {
     }
 }
 
+/**
+ * Uses a table copy to check if a primary key already exists in real table. Updates duplicated and adds new keys to table
+ * @param studentSchedule Student scheduke
+ * @param byuID User BYU ID
+ * @returns void
+ */
 async function writeDatabase(studentSchedule, byuID) {
     await truncateTable()
     for (let i = 0; i < studentSchedule.length; i++) {
-        let idTime;
+        let idTime
         let days = ''
         let fullName = studentSchedule[i].studName
         let startTime = studentSchedule[i].startTime
@@ -86,8 +108,6 @@ async function writeDatabase(studentSchedule, byuID) {
         let courseID = studentSchedule[i].id
         for (let j = 0; j < studentSchedule[i].days.length; j++) {
             days = dayNum(studentSchedule[i].days[j])
-
-
             idTime = byuID + '/' + days + "/" + startTime
             try {
                 const firstParams = await ssm.getParameters(parameters).promise()
@@ -97,7 +117,7 @@ async function writeDatabase(studentSchedule, byuID) {
                                 'VALUES (:idTime, :byuID, :fullName, :startTime, :endTime, :building, :room, :isOnline, :className, :courseID, :days)'
                 await conn.execute(command, {idTime: idTime,byuID: byuID, fullName: fullName,startTime: startTime,endTime: endTime,building: building,room: room,isOnline: isOnline,className: className,courseID: courseID,days: days}, {outFormat: oracle.OBJECT, autoCommit: true})
                 await conn.close()
-                await mergeDBS();
+                await mergeDBS()
             } catch (err) {
                 console.log(err)
                 throw err
@@ -108,6 +128,10 @@ async function writeDatabase(studentSchedule, byuID) {
     }
 }
 
+/**
+ * Merges the table copy and real table
+ * @returns void
+ */
 async function mergeDBS() {
     const firstParams = await ssm.getParameters(parameters).promise()
     await setOracleCredentials(firstParams.Parameters[1].Value, firstParams.Parameters[0].Value)
@@ -120,6 +144,12 @@ async function mergeDBS() {
     await conn2.close()
 }
 
+/**
+ * Allows user to remove downtime from table
+ * @param answerArray Times user wants to remove
+ * @param byuID User byu ID
+ * @returns void
+ */
 async function removeDownTime(answerArray, byuID) {
     let wordArray = []
     let wordsArray = []
@@ -152,6 +182,11 @@ async function removeDownTime(answerArray, byuID) {
 
 }
 
+/**
+ * Returns the database info in a way to be parsed and later edited
+ * @param byuID
+ * @returns {Promise<Week>} Week object with day schedule arrays
+ */
 async function editDatabase(byuID) {
     let week
     try {
@@ -167,6 +202,11 @@ async function editDatabase(byuID) {
     }
 }
 
+/**
+ * Prints the weekly schedule
+ * @param week Week object with day schedule arrays
+ * @returns void
+ */
 async function printWeek(week) {
     if (week.Monday.length != 0) {
         console.table('Monday: ')
@@ -199,7 +239,12 @@ async function printWeek(week) {
 
 }
 
-
+/**
+ * Parses database information
+ * @param result Database info object
+ * @param byuID User Byu ID
+ * @returns {Promise<Week>} Week object with day schedule arrays
+ */
 async function parseDatabase(result, byuID) {
     let week = new classes.Week
     for (let i = 0; i < result.rows.length; ++i){
@@ -242,28 +287,37 @@ async function parseDatabase(result, byuID) {
     return week
 }
 
-
+/**
+ * Changes day word or letter to a number
+ * @param day Day number
+ * @returns {number} Day number
+ */
 function dayNum(day) {
     switch (day) {
         case -1:
-            return -1;
+            return -1
         case 'M': case 'Monday':
-            return 0;
+            return 0
         case "T": case 'Tuesday':
-            return 1;
+            return 1
         case "W" : case  'Wednesday':
-            return 2;
+            return 2
         case 'Th' : case  'Thursday':
-            return 3;
+            return 3
         case "F" : case  'Friday':
-            return 4;
+            return 4
         case 'S' : case  'Saturday':
-            return 5;
+            return 5
         case "Su" : case  'Sunday':
-            return 6;
+            return 6
     }
 }
 
+/**
+ * Converts time from hours:minutes to total seconds for comparison
+ * @param time Time ("12:55")
+ * @returns {number} Total seconds ("15000")
+ */
 function convertTime(time) {
     let str1 = time.split(":")
     let totalSecs = parseInt(str1[0] * 3600 + str1[1] * 60)

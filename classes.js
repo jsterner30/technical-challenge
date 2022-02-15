@@ -7,6 +7,7 @@ class Building {
         this.roomArray
     }
 }
+
 class Room {
     constructor(number, description) {
         this.number = number
@@ -25,7 +26,7 @@ class Course {
         this.room = room
         this.startTime = startTime
         this.endTime = endTime
-        this.online = online;
+        this.online = online
         this.days = days
     }
 }
@@ -61,16 +62,24 @@ class Week {
         this.Sunday = []
     }
 
+    /**
+     * Sorts week so that earliest times are printed first
+     */
     sorter() {
-        this.Monday.sort((a, b) => parseFloat(a.timeSecs) - parseFloat(b.timeSecs));
-        this.Tuesday.sort((a, b) => parseFloat(a.timeSecs) - parseFloat(b.timeSecs));
-        this.Wednesday.sort((a, b) => parseFloat(a.timeSecs) - parseFloat(b.timeSecs));
-        this.Thursday.sort((a, b) => parseFloat(a.timeSecs) - parseFloat(b.timeSecs));
-        this.Friday.sort((a, b) => parseFloat(a.timeSecs) - parseFloat(b.timeSecs));
-        this.Saturday.sort((a, b) => parseFloat(a.timeSecs) - parseFloat(b.timeSecs));
-        this.Sunday.sort((a, b) => parseFloat(a.timeSecs) - parseFloat(b.timeSecs));
+        this.Monday.sort((a, b) => parseFloat(a.timeSecs) - parseFloat(b.timeSecs))
+        this.Tuesday.sort((a, b) => parseFloat(a.timeSecs) - parseFloat(b.timeSecs))
+        this.Wednesday.sort((a, b) => parseFloat(a.timeSecs) - parseFloat(b.timeSecs))
+        this.Thursday.sort((a, b) => parseFloat(a.timeSecs) - parseFloat(b.timeSecs))
+        this.Friday.sort((a, b) => parseFloat(a.timeSecs) - parseFloat(b.timeSecs))
+        this.Saturday.sort((a, b) => parseFloat(a.timeSecs) - parseFloat(b.timeSecs))
+        this.Sunday.sort((a, b) => parseFloat(a.timeSecs) - parseFloat(b.timeSecs))
     }
 
+    /**
+     * Returns a day array based on position in week
+     * @param number Position in week
+     * @returns {[]} Day array
+     */
     at(number) {
         switch (number) {
             case 0:
@@ -97,6 +106,11 @@ class Week {
         }
     }
 
+    /**
+     * Returns day name based on position in week
+     * @param number Position in week
+     * @returns {string} Day name
+     */
     day(number) {
         switch (number) {
             case 0:
