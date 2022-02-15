@@ -17,9 +17,11 @@ In order to use this program you must be subscribed to 4 four BYU APIs:
 [Link to Persons API page](https://api.byu.edu/store/apis/info?name=Persons&version=v3&provider=BYU%2Fjohnrb2)
 
 2. Students - v3
+
 [Link to Students API page](https://api.byu.edu/store/apis/info?name=Students&version=v3&provider=BYU%2Fmdh26)
 
 3. MobileLocationService - v2
+
 [Link to MobileLocationService API page](https://api.byu.edu/store/apis/info?name=MobileLocationService&version=v2&provider=BYU%2Fben1996)
 
  4. AcademicClassRoomClassSchedule - v1
