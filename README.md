@@ -36,7 +36,7 @@ In order to use this program you must connect to BYU's AWS. To do so:
     1. Visit [BYU's Amazon Webservice Site]: https://byulogin.awsapps.com/start#/
     2. Log in
     3. Copy PowerShell Environmental Variables
-    4. Save AWS Environmental Variable to your computer
+    4. Paste Powershell Environmental Variables into Powershell terminal
 
 ### Connect to VPN
 
@@ -46,8 +46,11 @@ In order to use this program you must connect to BYU's AWS. To do so:
 ### Download Program Files from Github
 
     1. Copy and download this Github reposisitory
-    2. Open files in a new Node.js project
-    3. Run "npm install" in your npm terminal
+    2. Open Powershell Terminal
+    3. Mode directory to be in the downloaded repository
+    4. Run "npm install" in the Powershell terminal
+    5. Run "node index" in the Powershell tetminal
+
 
 
 ## Using Downtime Scheduler:

@@ -2,6 +2,7 @@ const functions = require("./lib.js")
 const database = require("./database.js")
 
 async function main() {
+    console.clear();
     const delay = ms => new Promise(res => setTimeout(res, ms))
     await functions.printProgramName()
     await delay(2000)
