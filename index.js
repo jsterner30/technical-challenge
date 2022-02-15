@@ -7,7 +7,7 @@ async function main() {
     await functions.printProgramName()
     await delay(2000)
     await functions.printProgramDescription()
-    await delay(9000)
+    await delay(5000)
     console.clear()
     await database.getOracleCredentials()
     await database.testOracleConnectivityAws()

@@ -940,75 +940,78 @@ async function addDownTime(studSched, buildingArray) {
     let roomType = "CLASSROOM"
     let className = 'Downtime'
     let id = '00000'
-    let studName = studSched[0].studName
-    let answerDays = await inquirer
-        .prompt([{
-            name: "day",
-            type: "checkbox",
-            message: "On which days would you like to schedule downtime?",
-            choices: ['M', 'T', 'W', 'Th', 'F', 'S', 'Su']
-        }])
-    daysArray = answerDays.day
-    days = answerDays.day.join('')
-    let answer3 = await inquirer
-        .prompt([{
-            name: "times",
-            type: "datetime",
-            message: "Select the time you want to start studying",
-            format: ['H', ':', 'MM'],
-            initial: new Date('1999-12-31 6:00'),
-            time: {
-                min: '6:00',
-                max: '23:00'
-            },
-            minutes: {
-                interval: 5
-            }
-        }])
-    userTime = answer3.times.toString()
-    userTime = userTime.substr(15, 6)
-    needTime = await askUserNeedTime(`How many minutes will your downtime be on your chosen days?`)
-    needTime /= 60
-    let fullTime = needTime / 60
-    let minTime = fullTime - Math.floor(fullTime) * 60
-    let hTime = Math.floor(fullTime)
-    let endTime = await timeAdd(userTime, hTime, minTime)
-    if (await checkTime(studSched, userTime, daysArray, 'Please choose a time and day when you are free to schedule your downtime')) {
-        await addDownTime(studSched, buildingArray)
-    }
-    else {
-        let buildingCode
-        let answer4 = await inquirer
+    try {
+        let studName = studSched[0].studName
+        let answerDays = await inquirer
             .prompt([{
-                name: "building",
-                type: "list",
-                choices: buildingArray,
-                message: `In what BYU building will you spend your downtime?`
+                name: "day",
+                type: "checkbox",
+                message: "On which days would you like to schedule downtime?",
+                choices: ['M', 'T', 'W', 'Th', 'F', 'S', 'Su']
             }])
-        let daysAvailable = await checkRooms(answer4.building, buildingArray, studSched, days, userTime, roomType, needTime, false)
-        if (!daysAvailable) {
-            return
-        } else {
-            let answer5 = await inquirer
-                .prompt([{
-                    name: "room",
-                    type: "list",
-                    message: `In what room would you like to take spend your downtime?`,
-                    choices: daysAvailable,
-                }])
-            for (let t = 0; t < buildingArray.length; t++) {
-                if (answer4.building == buildingArray[t].name) {
-                    buildingCode = buildingArray[t].code
+        daysArray = answerDays.day
+        days = answerDays.day.join('')
+        let answer3 = await inquirer
+            .prompt([{
+                name: "times",
+                type: "datetime",
+                message: "Select the time you want to start studying",
+                format: ['H', ':', 'MM'],
+                initial: new Date('1999-12-31 6:00'),
+                time: {
+                    min: '6:00',
+                    max: '23:00'
+                },
+                minutes: {
+                    interval: 5
                 }
+            }])
+        userTime = answer3.times.toString()
+        userTime = userTime.substr(15, 6)
+        needTime = await askUserNeedTime(`How many minutes will your downtime be on your chosen days?`)
+        needTime /= 60
+        let fullTime = needTime / 60
+        let minTime = fullTime - Math.floor(fullTime) * 60
+        let hTime = Math.floor(fullTime)
+        let endTime = await timeAdd(userTime, hTime, minTime)
+        if (await checkTime(studSched, userTime, daysArray, 'Please choose a time and day when you are free to schedule your downtime')) {
+            await addDownTime(studSched, buildingArray)
+        } else {
+            let buildingCode
+            let answer4 = await inquirer
+                .prompt([{
+                    name: "building",
+                    type: "list",
+                    choices: buildingArray,
+                    message: `In what BYU building will you spend your downtime?`
+                }])
+            let daysAvailable = await checkRooms(answer4.building, buildingArray, studSched, days, userTime, roomType, needTime, false)
+            if (!daysAvailable) {
+                return
+            } else {
+                let answer5 = await inquirer
+                    .prompt([{
+                        name: "room",
+                        type: "list",
+                        message: `In what room would you like to take spend your downtime?`,
+                        choices: daysAvailable,
+                    }])
+                for (let t = 0; t < buildingArray.length; t++) {
+                    if (answer4.building == buildingArray[t].name) {
+                        buildingCode = buildingArray[t].code
+                    }
+                }
+                let online = false
+                userTime = userTime.substr(1, 5)
+                studSched.push(new classes.Course(className, id, studName, buildingCode, answer5.room, userTime, endTime, online, daysArray))
+                await database.writeDatabase(studSched, byuID)
+                console.clear()
+                console.log("Your schedule has been updated")
+                return studSched
             }
-            let online = false
-            userTime = userTime.substr(1, 5)
-            studSched.push(new classes.Course(className, id, studName, buildingCode, answer5.room, userTime, endTime, online, daysArray))
-            await database.writeDatabase(studSched, byuID)
-            console.clear()
-            console.log("Your schedule has been updated")
-            return studSched
         }
+    }catch (error){
+        return studSched
     }
 }
 
